@@ -18,6 +18,8 @@
 /*define*/
 #define TITLE 	TEXT("ハリネズミ　ケンジ君の大冒険!!")
 #define SAFE_RELEASE(p) { if (p) { (p)->Release(); (p)=NULL; } }
+#define PI 3.1415926535
+
 
 
 /*enum*/
@@ -35,7 +37,7 @@ enum TEX_INDEX
 {
 	LOGO_TEX,
 	TITLE_BACKGROUND_TEX,
-	STAGE_SELECT,
+	STAGE_SELECT_TEX,
 	TEX_MAX
 };
 
@@ -71,6 +73,8 @@ void Render();
 void Control();
 
 void Control_Key();
+
+void Free_DX();
 
 
 
@@ -115,8 +119,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	
 	int dH = GetSystemMetrics(SM_CYCAPTION) + GetSystemMetrics(SM_CYFRAME) * 2;
 	int dW = GetSystemMetrics(SM_CXFRAME) * 2;
+	
 
-					
 	hWnd = CreateWindow(
 		TITLE,								
 		TITLE, 								
@@ -139,13 +143,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 	Init_Dinput_Key(hWnd);
 
-
 	Render_Init();
 
 
 	Tex_Load("LOGO_test.png", &pTexture[LOGO_TEX],pD3Device);
 	Tex_Load("TITLE_test.png", &pTexture[TITLE_BACKGROUND_TEX], pD3Device);
-	Tex_Load("STAGE_SELECT_test.png", &pTexture[STAGE_SELECT], pD3Device);
+	Tex_Load("STAGE_SELECT_test.png", &pTexture[STAGE_SELECT_TEX], pD3Device);
 
 
 
@@ -178,6 +181,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 				
 				Control();
 
+
 				SyncOld = SyncNow;
 
 			}
@@ -186,6 +190,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 	timeEndPeriod(1);
 
+	Free_DX();
 
 	return (int)msg.wParam;
 }
@@ -268,7 +273,11 @@ void Render()
 
 	case STAGE_SELECT_SCENE:
 
+		Draw_Ready(pD3Device);
 
+		Tex_Set_Draw(pD3Device, pTexture[STAGE_SELECT_TEX], background_TITLE);
+
+		End_Scene(pD3Device);
 
 		break;
 
@@ -306,19 +315,35 @@ void Control_Key()
 
 		Key_Check_Dinput(&Key[Z],DIK_Z);
 
-		
+		if (Key[Z] == PUSH)
+		{
+			current_scene = TITLE_SCENE;
+		}
 
 		break;
 
 	case TITLE_SCENE:
 
+		Key_Check_Dinput(&Key[Z], DIK_Z);
 
+
+		if (Key[Z] == PUSH)
+		{
+			current_scene = STAGE_SELECT_SCENE;
+		}
 
 		break;
 
 	case STAGE_SELECT_SCENE:
 
-
+		
+		Key_Check_Dinput(&Key[ESC], DIK_ESCAPE);
+		
+		if (Key[ESC] == PUSH)
+		{
+			Free_DX();
+			exit(1);
+		}
 
 		break;
 
