@@ -204,7 +204,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 //-------------------------------------------------------------
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
-
+	
 	switch (msg)
 	{
 	case WM_DESTROY:	//	ウインドウが閉じられた時とか
@@ -338,7 +338,14 @@ void Control_Key()
 
 		
 		Key_Check_Dinput(&Key[ESC], DIK_ESCAPE);
-		
+		Key_Check_Dinput(&Key[Z], DIK_Z);
+
+
+		if (Key[Z] == PUSH)
+		{
+			current_scene = GAME_SCENE;
+		}
+
 		if (Key[ESC] == PUSH)
 		{
 			Free_DX();
