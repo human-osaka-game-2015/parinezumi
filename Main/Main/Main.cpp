@@ -500,10 +500,10 @@ void Render()
 		{
 			CUSTOMVERTEX tutorial[] =
 			{
-				{ 300.0f, 100.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
-				{ 980.0f, 100.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
-				{ 980.0f, 600.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
-				{ 300.0f, 600.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+				{   0.0f,  0.0f,   0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+				{ 1280.0f, 0.0f,   0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+				{ 1280.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+				{   0.0f,  720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
 			};
 
 			Tex_Set_Draw(pD3Device, pTexture[TUTORIAL_SCENE_TEX],tutorial);

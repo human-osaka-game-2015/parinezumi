@@ -33,6 +33,9 @@
     <ClCompile Include="Tex.cpp">
       <Filter>lib</Filter>
     </ClCompile>
+    <ClCompile Include="directsound_lib.cpp">
+      <Filter>lib</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="directinput_lib.h">
@@ -42,6 +45,9 @@
       <Filter>ヘッダー ファイル\lib.h</Filter>
     </ClInclude>
     <ClInclude Include="Tex_lib.h">
+      <Filter>ヘッダー ファイル\lib.h</Filter>
+    </ClInclude>
+    <ClInclude Include="directsound_lib.h">
       <Filter>ヘッダー ファイル\lib.h</Filter>
     </ClInclude>
   </ItemGroup>

@@ -69,12 +69,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="directinput_lib.cpp" />
+    <ClCompile Include="directsound_lib.cpp" />
     <ClCompile Include="directx.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Tex.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="directinput_lib.h" />
+    <ClInclude Include="directsound_lib.h" />
     <ClInclude Include="directx.h" />
     <ClInclude Include="Tex_lib.h" />
   </ItemGroup>
