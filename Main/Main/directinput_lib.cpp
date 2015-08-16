@@ -83,6 +83,7 @@ HRESULT Init_Dinput_Key(HWND hWnd)
 }
 
 
+
 /**
  * ダイレクトインプットのマウス初期化
  */

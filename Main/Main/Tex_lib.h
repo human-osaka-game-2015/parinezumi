@@ -106,3 +106,6 @@ void Draw_Ready(IDirect3DDevice9* pD3Device);
 void End_Scene(IDirect3DDevice9* pD3Device);
 
 
+//
+//void Vertex_tmp(CUSTOMVERTEX* Vertex, CUSTOMVERTEX* tmp);
+

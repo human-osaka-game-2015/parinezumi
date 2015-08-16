@@ -171,3 +171,14 @@ void End_Scene(IDirect3DDevice9* pD3Device)
 	//•\Ž¦
 	pD3Device->Present(NULL, NULL, NULL, NULL);
 }
+
+//void Vertex_tmp(CUSTOMVERTEX* Vertex, CUSTOMVERTEX* tmp, int x, int y)
+//{
+//	for (int i = 0; i < 4; i++)
+//	{
+//		Vertex[i] = tmp[i];
+//		Vertex[i].x += x;
+//		Vertex[i].y += y;
+//	}
+//
+//}

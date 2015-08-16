@@ -1,0 +1,657 @@
+#include <windows.h>
+#include <mmsystem.h>
+#include <d3dx9.h>
+#include <d3dx9tex.h>
+#include <stdio.h>
+
+/*自作ライブラリ*/
+#include "directinput_lib.h" 
+#include "Tex_lib.h"
+#include "directx.h"
+
+/*自作ヘッダ*/
+
+
+
+/*メモリリーク検出用関数を使うためのヘッダー*/
+#include <crtdbg.h>
+
+/*define*/
+#define TITLE 	TEXT("ハリネズミ　ケンジ君の大冒険!!")
+#define SAFE_RELEASE(p) { if (p) { (p)->Release(); (p)=NULL; } }
+#define PI 3.1415926535
+#define MAP_HEIGHT 30
+#define MAP_WIDTH 100
+#define TIPSIZE 32
+
+
+/*enum*/
+enum SCENE
+{
+	LOGO_SCENE,
+	TITLE_SCENE,
+	STAGE_SELECT_SCENE,
+	GAME_SCENE,
+	RESULT_SCENE,
+	GAMEOVER_SCENE,
+	SCENE_MAX
+};
+
+enum TEX_INDEX
+{
+	LOGO_TEX,
+	TITLE_BACKGROUND_TEX,
+	STAGE_SELECT_TEX,
+	ENEMY_TEX,
+	START_TEX,
+	OUT_TEX,
+	UI_TEX,
+	GAMEOVER_TEX,
+	RESULT_TEX,
+	GAME_BACKGROUND_TEX,
+
+
+
+
+	TEST_TEX,
+	TEX_MAX
+};
+
+
+
+/*directxのオブジェクト*/
+IDirect3D9*	pDirect3D;
+IDirect3DDevice9*	pD3Device;
+LPDIRECT3DTEXTURE9 pTexture[TEX_MAX];
+
+
+/*グローバル変数*/
+int current_scene = LOGO_SCENE;
+int map[MAP_HEIGHT][MAP_WIDTH];
+
+int select_cursor = 0;
+
+
+KEYSTATE Key[KEYMAX];
+
+CUSTOMVERTEX background_TITLE[] =
+{
+	{    0.0f, 0.0f,   0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 1280.0f, 0.0f,   0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 1280.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{    0.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+};
+
+
+CUSTOMVERTEX TITLE_SELECT[] =
+{
+	{ 420.0f,  400.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 880.0f,  400.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 880.0f,  520.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{ 420.0f,  520.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+};
+
+CUSTOMVERTEX UI[] =
+{
+	{ 300.0f, 380.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 410.0f, 380.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 410.0f, 500.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{ 300.0f, 500.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+};
+
+CUSTOMVERTEX map_tip[] =
+{
+	{ 0.0f,  0.0f,  0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 32.0f, 0.0f,  0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 32.0f, 32.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{ 0.0f,  32.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+};
+
+/*関数のプロトタイプ宣言*/
+LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp);
+
+void Render_Init();
+
+void Render();
+
+void Control();
+
+void Control_Key();
+
+void Free_DX();
+
+
+
+
+
+
+
+
+
+
+//-------------------------------------------------------------
+//
+//	メインルーチン
+//
+//-------------------------------------------------------------
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
+	PSTR lpCmdLine, int nCmdShow)
+{
+	MSG msg;
+	HWND hWnd;
+	WNDCLASS winc;
+
+	FILE*  fp;
+
+
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+
+
+
+
+
+	winc.style = CS_HREDRAW | CS_VREDRAW;
+	winc.lpfnWndProc = WndProc;
+	winc.cbClsExtra = winc.cbWndExtra = 0;
+	winc.hInstance = hInstance;
+	winc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+	winc.hCursor = LoadCursor(NULL, IDC_ARROW);
+	winc.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
+	winc.lpszMenuName = NULL;
+	winc.lpszClassName = TITLE;
+
+	
+	if (!RegisterClass(&winc)) return 0;
+
+	
+	int dH = GetSystemMetrics(SM_CYCAPTION) + GetSystemMetrics(SM_CYFRAME) * 2;
+	int dW = GetSystemMetrics(SM_CXFRAME) * 2;
+	
+
+	hWnd = CreateWindow(
+		TITLE,								
+		TITLE, 								
+		WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+		CW_USEDEFAULT,
+		CW_USEDEFAULT,
+		1280 + dW,
+		720 + dH,
+		NULL,
+		NULL,
+		hInstance,
+		NULL
+		);
+	if (!hWnd) return 0;
+
+
+	Init_DX(&pDirect3D, hWnd, &pD3Device);
+
+	Init_Dinput();
+
+	Init_Dinput_Key(hWnd);
+
+	Render_Init();
+
+
+	Tex_Load("LOGO_test.png", &pTexture[LOGO_TEX],pD3Device);
+	Tex_Load("TITLE_test.png", &pTexture[TITLE_BACKGROUND_TEX], pD3Device);
+	Tex_Load("STAGE_SELECT_test.png", &pTexture[STAGE_SELECT_TEX], pD3Device);
+	Tex_Load("Test.bmp", &pTexture[TEST_TEX], pD3Device);
+
+	Tex_Load("GAME.png", &pTexture[GAME_BACKGROUND_TEX], pD3Device);
+	Tex_Load("GAMECLEAR.png", &pTexture[RESULT_TEX], pD3Device);
+	Tex_Load("GAMEOVER.png", &pTexture[GAMEOVER_TEX], pD3Device);
+
+
+	Tex_Load_EX("start.png", &pTexture[START_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("over.png", &pTexture[OUT_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("ui.png", &pTexture[UI_TEX], pD3Device, 255, 255, 255, 255);
+
+
+
+
+	
+
+
+	fopen_s(&fp,"Test.csv","r");
+
+	for (int i = 0; i < MAP_HEIGHT; i++)
+	{
+		for (int j = 0; j < MAP_WIDTH; j++)
+		{
+			fscanf_s(fp, "%d,", &map[i][j], _countof(map));
+		}
+	}
+	
+	
+
+	DWORD SyncOld = timeGetTime();
+	DWORD SyncNow;
+
+	timeBeginPeriod(1);
+
+
+
+	ZeroMemory(&msg, sizeof(msg));
+	while (msg.message != WM_QUIT)
+	{
+		Sleep(1);
+		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+		else
+		{
+			SyncNow = timeGetTime();
+			if (SyncNow - SyncOld >= 1000 / 60)
+			{
+				Render();
+				
+				Control();
+
+
+				SyncOld = SyncNow;
+
+			}
+		}
+	}
+
+	timeEndPeriod(1);
+
+	Free_DX();
+
+	return (int)msg.wParam;
+}
+
+
+
+//-------------------------------------------------------------
+//
+//	メッセージ処理
+//
+//-------------------------------------------------------------
+LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp)
+{
+	
+	switch (msg)
+	{
+	case WM_DESTROY:	//	ウインドウが閉じられた時とか
+		PostQuitMessage(0);
+		return 0;
+	}
+
+	return DefWindowProc(hWnd, msg, wp, lp);
+
+}
+
+
+
+//-------------------------------------------------------------
+//
+//	描画方法の設定
+//
+//-------------------------------------------------------------
+void Render_Init()
+{
+	pD3Device->SetRenderState(D3DRS_ALPHABLENDENABLE, true);
+	pD3Device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA);
+	pD3Device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+	pD3Device->SetRenderState(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
+
+	pD3Device->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+	pD3Device->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+
+	pD3Device->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+
+	pD3Device->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+	pD3Device->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+
+	pD3Device->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+}
+
+
+//-------------------------------------------------------------
+//
+//	描画関数
+//
+//-------------------------------------------------------------
+void Render()
+{
+	switch (current_scene)
+	{
+	case LOGO_SCENE:
+		
+		Draw_Ready(pD3Device);
+
+		CUSTOMVERTEX tmp_map[4];
+
+		
+
+		for (int y = 0; y < MAP_HEIGHT; y++)
+		{
+
+			for (int x = 0; x < MAP_WIDTH; x++)
+			{
+
+				for (int i = 0; i < 4; i++)
+				{
+					tmp_map[i] = map_tip[i];
+				}
+				
+				for (int i = 0; i < 4; i++)
+				{
+					tmp_map[i].x += (x * 32);
+					tmp_map[i].y += (y * 32);
+
+				}
+
+				if (map[y][x] == 1)
+				{
+					tmp_map[0].tu = 0.25;
+					tmp_map[0].tv = 0.0;
+					tmp_map[1].tu = 0.5;
+					tmp_map[1].tv = 0.0;
+					tmp_map[2].tu = 0.5;
+					tmp_map[2].tv = 1.0;
+					tmp_map[3].tu = 0.25;
+					tmp_map[3].tv = 1.0;
+
+					Tex_Set_Draw(pD3Device, pTexture[TEST_TEX], tmp_map);
+				}
+
+				if (map[y][x] == 2)
+				{
+
+					tmp_map[0].tu = 0.5;
+					tmp_map[0].tv = 0.0;
+					tmp_map[1].tu = 0.75;
+					tmp_map[1].tv = 1.0;
+					tmp_map[2].tu = 0.75;
+					tmp_map[2].tv = 1.0;
+					tmp_map[3].tu = 0.5;
+					tmp_map[3].tv = 1.0;
+
+					Tex_Set_Draw(pD3Device, pTexture[TEST_TEX], tmp_map);
+				}
+
+			}
+		}
+
+
+		break;
+
+	case TITLE_SCENE:
+
+		Draw_Ready(pD3Device);
+
+
+		
+		
+
+		Tex_Set_Draw(pD3Device, pTexture[TITLE_BACKGROUND_TEX], background_TITLE);
+
+
+
+
+
+		CUSTOMVERTEX OVER[4];
+
+		for (int i = 0; i < 4; i++)
+		{
+			OVER[i] = TITLE_SELECT[i];
+
+			OVER[i].y += 100;
+		}
+
+		Tex_Set_Draw(pD3Device, pTexture[START_TEX], TITLE_SELECT);
+
+		Tex_Set_Draw(pD3Device, pTexture[OUT_TEX], OVER);
+
+		if (select_cursor == 0)
+		{
+			for (int i = 0; i < 4; i++)
+			{
+				UI[i].y = TITLE_SELECT[i].y;
+			}
+			UI[0].y -= 20;
+			UI[1].y -= 20;
+			UI[2].y += 20;
+			UI[3].y += 20;
+
+
+			Tex_Set_Draw(pD3Device, pTexture[UI_TEX], UI);
+		}
+
+		if (select_cursor == 1)
+		{
+			for (int i = 0; i < 4; i++)
+			{
+				UI[i].y = TITLE_SELECT[i].y;
+			}
+			UI[0].y += 80;
+			UI[1].y += 80;
+			UI[2].y += 120;
+			UI[3].y += 120;
+
+			Tex_Set_Draw(pD3Device, pTexture[UI_TEX], UI);
+		}
+
+
+
+
+
+
+		End_Scene(pD3Device);
+
+		break;
+
+	case STAGE_SELECT_SCENE:
+
+		Draw_Ready(pD3Device);
+
+		Tex_Set_Draw(pD3Device, pTexture[STAGE_SELECT_TEX], background_TITLE);
+
+		End_Scene(pD3Device);
+
+		break;
+
+	case GAME_SCENE:
+
+		Draw_Ready(pD3Device);
+
+		Tex_Set_Draw(pD3Device, pTexture[GAME_BACKGROUND_TEX], background_TITLE);
+
+		End_Scene(pD3Device);
+
+
+		break;
+
+	case RESULT_SCENE:
+
+
+		Draw_Ready(pD3Device);
+
+		Tex_Set_Draw(pD3Device, pTexture[RESULT_TEX], background_TITLE);
+
+		End_Scene(pD3Device);
+
+		break;
+
+	case GAMEOVER_SCENE:
+
+		Draw_Ready(pD3Device);
+
+		Tex_Set_Draw(pD3Device, pTexture[GAMEOVER_TEX], background_TITLE);
+
+		End_Scene(pD3Device);
+
+
+		break;
+
+	}
+}
+
+
+//-------------------------------------------------------------
+//
+//	コントロール関数
+//
+//-------------------------------------------------------------
+void Control()
+{
+	Control_Key();
+}
+
+
+void Control_Key()
+{
+	switch (current_scene)
+	{
+	case LOGO_SCENE:
+
+		Key_Check_Dinput(&Key[Z],DIK_Z);
+		Key_Check_Dinput(&Key[ESC], DIK_ESCAPE);
+
+
+
+		if (Key[Z] == PUSH)
+		{
+			current_scene = TITLE_SCENE;
+		}
+
+		if (Key[ESC] == PUSH)
+		{
+			Free_DX();
+			exit(1);
+		}
+
+		break;
+
+	case TITLE_SCENE:
+
+		Key_Check_Dinput(&Key[Z], DIK_Z);
+		Key_Check_Dinput(&Key[UP], DIK_UP);
+		Key_Check_Dinput(&Key[DOWN], DIK_DOWN);
+		Key_Check_Dinput(&Key[ESC], DIK_ESCAPE);
+
+
+		if (Key[DOWN] == PUSH)
+		{
+			if (select_cursor == 1)
+			{
+				select_cursor = 0;
+			}
+			else
+			{
+				select_cursor = 1;
+			}
+		}
+
+		if (Key[UP] == PUSH)
+		{
+			if (select_cursor == 1)
+			{
+				select_cursor = 0;
+			}
+			else
+			{
+				select_cursor = 1;
+			}
+		}
+
+		if (Key[ESC] == PUSH)
+		{
+			Free_DX();
+			exit(1);
+		}
+
+
+		if (Key[Z] == PUSH)
+		{
+			current_scene = STAGE_SELECT_SCENE;
+		}
+
+		break;
+
+	case STAGE_SELECT_SCENE:
+
+		
+		Key_Check_Dinput(&Key[ESC], DIK_ESCAPE);
+		Key_Check_Dinput(&Key[Z], DIK_Z);
+
+
+
+
+		if (Key[Z] == PUSH)
+		{
+			current_scene = GAME_SCENE;
+		}
+
+		if (Key[ESC] == PUSH)
+		{
+			Free_DX();
+			exit(1);
+		}
+
+		break;
+
+	case GAME_SCENE:
+
+
+		Key_Check_Dinput(&Key[Z], DIK_Z);
+		Key_Check_Dinput(&Key[X], DIK_X);
+
+		
+		if (Key[Z] == PUSH)
+		{
+			current_scene = RESULT_SCENE;
+		}
+
+		if (Key[X] == PUSH)
+		{
+			current_scene = GAMEOVER_SCENE;
+		}
+
+
+		break;
+
+	case RESULT_SCENE:
+
+		Key_Check_Dinput(&Key[Z], DIK_Z);
+
+
+
+
+		break;
+
+		
+	case GAMEOVER_SCENE:
+
+		Key_Check_Dinput(&Key[Z], DIK_Z);
+
+
+
+
+		break;
+
+	}
+}
+
+
+//-------------------------------------------------------------
+//
+//	オブジェクトの解放関数
+//
+//-------------------------------------------------------------
+void Free_DX()
+{
+
+
+	SAFE_RELEASE(pD3Device);
+
+	SAFE_RELEASE(pDirect3D);
+
+
+}
+
