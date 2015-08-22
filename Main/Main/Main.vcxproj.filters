@@ -13,11 +13,11 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="lib">
-      <UniqueIdentifier>{37030f4e-565e-4f51-971d-6916b2a0827d}</UniqueIdentifier>
-    </Filter>
     <Filter Include="ヘッダー ファイル\lib.h">
       <UniqueIdentifier>{a9a2a46f-e234-49cf-adec-8861177975bd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\lib">
+      <UniqueIdentifier>{37030f4e-565e-4f51-971d-6916b2a0827d}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -25,16 +25,28 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="directinput_lib.cpp">
-      <Filter>lib</Filter>
+      <Filter>ソース ファイル\lib</Filter>
     </ClCompile>
     <ClCompile Include="directx.cpp">
-      <Filter>lib</Filter>
+      <Filter>ソース ファイル\lib</Filter>
     </ClCompile>
     <ClCompile Include="Tex.cpp">
-      <Filter>lib</Filter>
+      <Filter>ソース ファイル\lib</Filter>
     </ClCompile>
     <ClCompile Include="directsound_lib.cpp">
-      <Filter>lib</Filter>
+      <Filter>ソース ファイル\lib</Filter>
+    </ClCompile>
+    <ClCompile Include="Title.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Stage_select.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Logo.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="Game.cpp">
+      <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -49,6 +61,15 @@
     </ClInclude>
     <ClInclude Include="directsound_lib.h">
       <Filter>ヘッダー ファイル\lib.h</Filter>
+    </ClInclude>
+    <ClInclude Include="Main.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Render_Control.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Game.h">
+      <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

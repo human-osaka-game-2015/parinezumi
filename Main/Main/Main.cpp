@@ -8,6 +8,9 @@
 #include "directinput_lib.h" 
 #include "Tex_lib.h"
 #include "directx.h"
+#include "Main.h"
+#include "Render_Control.h"
+#include "Game.h"
 
 /*自作ヘッダ*/
 
@@ -20,54 +23,16 @@
 #define TITLE 	TEXT("ハリネズミ　ケンジ君の大冒険!!")
 #define SAFE_RELEASE(p) { if (p) { (p)->Release(); (p)=NULL; } }
 #define PI 3.1415926535
-#define MAP_HEIGHT 23
-#define MAP_WIDTH 100
+#define MAP_HEIGHT 20
+#define MAP_WIDTH 300
 #define TIPSIZE 32
-#define STAGE_MAX 1
+#define GRAVITY 9.8
+
 
 
 
 /*enum*/
-enum SCENE
-{
-	LOGO_SCENE,
-	TITLE_SCENE,
-	STAGE_SELECT_SCENE,
-	GAME1_SCENE,
-	GAME2_SCENE,
-	RESULT_SCENE,
-	GAMEOVER_SCENE,
-	SCENE_MAX
-};
 
-enum TEX_INDEX
-{
-	LOGO_TEX,
-	BLACK_TEX,
-	TITLE_BACKGROUND_TEX,
-	STAGE_SELECT_BACKGROUND_TEX,
-	STAGE_SELECT_TEX,
-	ENEMY_TEX,
-	START_TEX,
-	OPTION_TEX,
-	OPTION_SCENE_TEX,
-
-	TUTORIAL_TEX,
-	TUTORIAL_SCENE_TEX,
-
-	
-	UI_TEX,
-	GAMEOVER_TEX,
-	RESULT_TEX,
-	GAME_BACKGROUND_TEX,
-
-	C0101_TEX,
-
-
-
-	TEST_TEX,
-	TEX_MAX
-};
 
 
 
@@ -79,22 +44,72 @@ LPDIRECT3DTEXTURE9 pTexture[TEX_MAX];
 
 /*グローバル変数*/
 int current_scene = LOGO_SCENE;
+
 int map[MAP_HEIGHT][MAP_WIDTH];
-int title_select_cursor = 0;
-int title_select_option_cursor = 0;
-int stage_select_cursor = 0;
+int heart_num = 5;
+int map_error = 0;
 
-unsigned int stage_select_time = 0;
+unsigned int game_time = 0;
 
 
-bool Logo_change_flag = false;
 
-bool stage_left_direction = false;
+
 
 bool isGame1_start = false;
 bool isGame2_start = false;
-bool isTutorial = false;
-bool isOption = false;
+
+
+
+double fall_time = 0.0;
+
+
+
+/**ジャンプ系の変数
+ *v0はジャンプの初速
+ *
+ *
+ *
+ */
+float v0;
+bool isjump_flag = false;
+int jump_time = 0;
+
+
+
+
+
+
+//Game1
+
+//Sunder系の変数
+/**
+ *cooltime_Sunderは雷のクールタイム
+ *sunder_timeは雷の描画時間
+ *isSunder_flagは雷の描画フラグ
+ *use_sunderは雷を何度使ったかを格納する変数　スコアで使う
+ */
+int cooltime_Thunder = 0;
+int Thunder_time = 0;
+bool isThunder_flag = false;
+int use_Thunder = 0;
+
+
+/**
+ *cooltime_Windは風のクールタイム
+ *Wind_timeは風の描画時間
+ *isWind_flagは風の描画フラグ
+ *use_Windは風を何度使ったかを格納する変数　スコアで使う
+ */
+int cooltime_Wind = 0;
+int Wind_time = 0;
+bool isWind_flag = false;
+int use_Wind = 0;
+
+
+//神様行動をしているかのフラグ
+//trueだったら、神様行動は行えないようにする
+bool Effect_flag = false;
+
 
 
 
@@ -134,7 +149,6 @@ CUSTOMVERTEX TITLE_select[] =
 	{ 520.0f,  430.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
 };
 
-
 CUSTOMVERTEX map_tip[] =
 {
 	{ 0.0f,  0.0f,  0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
@@ -143,22 +157,63 @@ CUSTOMVERTEX map_tip[] =
 	{ 0.0f,  32.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
 };
 
-CUSTOMVERTEX stage_select_map[] =
+CUSTOMVERTEX player_chara[] =
 {
-	{ 0.0f,    300.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
-	{ 1280.0f, 300.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
-	{ 1280.0f, 500.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
-	{ 0.0f,    500.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+	{ 0.0f,   150.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f,  0.0f },
+	{ 100.0f, 150.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.25f, 0.0f },
+	{ 100.0f, 250.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.25f, 1.0f },
+	{ 0.0f,   250.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f,  1.0f },
 };
 
-CUSTOMVERTEX stage_select_char[] =
+//ゲームUI 
+CUSTOMVERTEX game_ui[] = 
 {
-	{ 150.0f, 370.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
-	{ 250.0f, 370.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.25f, 0.0f },
-	{ 250.0f, 470.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.25f, 1.0f },
-	{ 150.0f, 470.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+	{ 0.0f,    540.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f,  0.0f },
+	{ 1280.0f, 540.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.25f, 0.0f },
+	{ 1280.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.25f, 1.0f },
+	{ 0.0f,    720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f,  1.0f },
 };
 
+CUSTOMVERTEX game_ui_apple[] =
+{
+	{ 0.0f,  540.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 60.0f, 540.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 60.0f, 600.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{ 0.0f,  600.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+};
+
+CUSTOMVERTEX game_ui_heart[] =
+{
+	{ 0.0f,  600.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 60.0f, 600.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 60.0f, 660.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{ 0.0f,  660.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+};
+
+CUSTOMVERTEX game_ui_hand[]
+{
+	{ 190.0f,  0.0f,  0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 280.0f, 0.0f,  0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 280.0f, 60.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{ 190.0f,  60.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+};
+
+
+CUSTOMVERTEX thunder[] =
+{
+	{ 0.0f, 60.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 60.0f, 60.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 60.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{ 0.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+};
+
+CUSTOMVERTEX wind[] =
+{
+	{ 0.0f, 400.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 200.0f, 400.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 200.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{ 0.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+};
 
 
 
@@ -243,28 +298,47 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	Render_Init();
 
 
-	Tex_Load("LOGO_test.png", &pTexture[LOGO_TEX],pD3Device);
-	Tex_Load("TITLE_test.png", &pTexture[TITLE_BACKGROUND_TEX], pD3Device);
-	Tex_Load("STAGE_SELECT_test.png", &pTexture[STAGE_SELECT_TEX], pD3Device);
-	Tex_Load("Test.bmp", &pTexture[TEST_TEX], pD3Device);
-	Tex_Load("GAME.png", &pTexture[GAME_BACKGROUND_TEX], pD3Device);
-	Tex_Load("GAMECLEAR.png", &pTexture[RESULT_TEX], pD3Device);
-	Tex_Load("GAMEOVER.png", &pTexture[GAMEOVER_TEX], pD3Device);
-	Tex_Load("black.png", &pTexture[BLACK_TEX], pD3Device);
-	Tex_Load("STAGE_SELECT_test.png", &pTexture[STAGE_SELECT_BACKGROUND_TEX],pD3Device);
-	Tex_Load("option_scene.png", &pTexture[OPTION_SCENE_TEX], pD3Device);
-	Tex_Load("tutorial_scene.png", &pTexture[TUTORIAL_SCENE_TEX], pD3Device);
+	Tex_Load("Tex/LOGO_test.png", &pTexture[LOGO_TEX],pD3Device);
+	Tex_Load("Tex/TITLE_test.png", &pTexture[TITLE_BACKGROUND_TEX], pD3Device);
+	Tex_Load("Tex/STAGE_SELECT_test.png", &pTexture[STAGE_SELECT_TEX], pD3Device);
+	Tex_Load("Tex/Test.bmp", &pTexture[TEST_TEX], pD3Device);
+	Tex_Load("Tex/GAME.png", &pTexture[GAME_BACKGROUND_TEX], pD3Device);
+	Tex_Load("Tex/GAMECLEAR.png", &pTexture[RESULT_TEX], pD3Device);
+	Tex_Load("Tex/GAMEOVER.png", &pTexture[GAMEOVER_TEX], pD3Device);
+	Tex_Load("Tex/black.png", &pTexture[BLACK_TEX], pD3Device);
+	Tex_Load("Tex/STAGE_SELECT_test.png", &pTexture[STAGE_SELECT_BACKGROUND_TEX],pD3Device);
+	Tex_Load("Tex/option_scene.png", &pTexture[OPTION_SCENE_TEX], pD3Device);
+	Tex_Load("Tex/tutorial_scene.png", &pTexture[TUTORIAL_SCENE_TEX], pD3Device);
+	Tex_Load("Tex/main_game_ui.png", &pTexture[GAME_UI_TEX], pD3Device);
+	
+	
+	Tex_Load_EX("Tex/stage_select_map.png", &pTexture[STAGE_SELECT_TEX], pD3Device,255,255,255,255);
+	Tex_Load_EX("Tex/start.png", &pTexture[START_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("Tex/tutorial.png", &pTexture[TUTORIAL_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("Tex/option.png", &pTexture[OPTION_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("Tex/title_ui.png", &pTexture[UI_TEX], pD3Device, 255, 255, 255, 255);
+
+	//神様エフェクト＆UI
+	Tex_Load_EX("Tex/G_01_02.png", &pTexture[G_01_02_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("Tex/G_01_04.png", &pTexture[G_01_04_TEX], pD3Device, 255, 255, 255, 255);
+
+	Tex_Load_EX("Tex/G_test.png", &pTexture[HUND_UI_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("Tex/heart.png", &pTexture[UI_HEART_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("Tex/apple_test.png", &pTexture[UI_APPLE_TEX], pD3Device, 255, 0, 0, 0);
 
 
 
-	Tex_Load_EX("stage_select_map.png", &pTexture[STAGE_SELECT_TEX], pD3Device,255,255,255,255);
-	Tex_Load_EX("C0101.png", &pTexture[C0101_TEX], pD3Device, 255, 255, 255, 255);
-	Tex_Load_EX("start.png", &pTexture[START_TEX], pD3Device, 255, 255, 255, 255);
-	Tex_Load_EX("tutorial.png", &pTexture[TUTORIAL_TEX], pD3Device, 255, 255, 255, 255);
-	Tex_Load_EX("option.png", &pTexture[OPTION_TEX], pD3Device, 255, 255, 255, 255);
-	Tex_Load_EX("ui.png", &pTexture[UI_TEX], pD3Device, 255, 255, 255, 255);
+	//G_01_02.png
 
 
+	//ハリネズミ
+	Tex_Load_EX("Tex/C_01_01.png", &pTexture[C_01_01_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("Tex/C_01_02.png", &pTexture[C_01_02_TEX], pD3Device, 255, 255, 255, 255);
+
+
+
+
+	//初期化関数作るのもいいかも
 		
 	
 
@@ -290,9 +364,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 			SyncNow = timeGetTime();
 			if (SyncNow - SyncOld >= 1000 / 60)
 			{
+
 				Render();
-				
+
+
 				Control();
+
+				
 
 				SyncOld = SyncNow;
 			}
@@ -365,259 +443,35 @@ void Render()
 	{
 	case LOGO_SCENE:
 		
-		Draw_Ready(pD3Device);
-
-		
-
-		
-		if (Logo_change_flag == true)
-		{
-			for (int i = 0; i < 4; i++)
-			{
-
-				black_background[i].color += 0x03000000;
-			}
-		}
-
-
-		if (Logo_change_flag == false)
-		{
-			for (int i = 0; i < 4; i++)
-			{
-				black_background[i].color -= 0x03000000;
-			}
-		}
-
-	
-		if (black_background[0].color <= 0x00FFFFFF && Logo_change_flag == false)
-		{
-			Logo_change_flag = true;
-		}
-				
-		if (black_background[0].color >= 0xFFFFFFFF && Logo_change_flag == true)
-		{
-			current_scene = TITLE_SCENE;
-		}
-			
-		Tex_Set_Draw(pD3Device, pTexture[LOGO_TEX], background);
-		Tex_Set_Draw(pD3Device, pTexture[BLACK_TEX], black_background);
-
-	
-		End_Scene(pD3Device);
+		Logo_Render();
 
 		break;
 
+
 	case TITLE_SCENE:
 
-		Draw_Ready(pD3Device);
-
-
-		CUSTOMVERTEX background_TITLE[4];
-		CUSTOMVERTEX UI[4];
-		CUSTOMVERTEX Tutorial[4];
-		CUSTOMVERTEX Option[4];
-
-		
-		for (int i = 0; i < 4; i++)
-		{
-			background_TITLE[i] = background[i];
-		}
-
-		UI[0] = { 400.0f, 420.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f };
-		UI[1] = { 510.0f, 420.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f };
-		UI[2] = { 510.0f, 540.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f };
-		UI[3] = { 400.0f, 540.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f };
-
-
-		
-		for (int i = 0; i < 4; i++)
-		{
-			Tutorial[i] = TITLE_select[i];
-			Option[i] = TITLE_select[i];
-
-			Tutorial[i].y += 80;
-			Option[i].y += 160;
-		}
-		
-
-
-
-		Tex_Set_Draw(pD3Device, pTexture[TITLE_BACKGROUND_TEX], background_TITLE);
-		Tex_Set_Draw(pD3Device, pTexture[START_TEX], TITLE_select);
-		Tex_Set_Draw(pD3Device, pTexture[TUTORIAL_TEX], Tutorial);
-		Tex_Set_Draw(pD3Device, pTexture[OPTION_TEX], Option);
-
-
-
-
-
-
-
-		if (title_select_cursor == 0)
-		{
-			for (int i = 0; i < 4; i++)
-			{
-				UI[i].y = TITLE_select[i].y;
-			}
-
-			Tex_Set_Draw(pD3Device, pTexture[UI_TEX], UI);
-		}
-
-		if (title_select_cursor == 1)
-		{
-			for (int i = 0; i < 4; i++)
-			{
-				UI[i].y = TITLE_select[i].y;
-			}
-			UI[0].y += 80;
-			UI[1].y += 80;
-			UI[2].y += 80;
-			UI[3].y += 80;
-
-			Tex_Set_Draw(pD3Device, pTexture[UI_TEX], UI);
-		}
-
-		if (title_select_cursor == 2)
-		{
-			for (int i = 0; i < 4; i++)
-			{
-				UI[i].y = TITLE_select[i].y;
-			}
-			UI[0].y += 160;
-			UI[1].y += 160;
-			UI[2].y += 160;
-			UI[3].y += 160;
-
-			Tex_Set_Draw(pD3Device, pTexture[UI_TEX], UI);
-		}
-
-
-
-		
-
-
-		if (isTutorial == true)
-		{
-			CUSTOMVERTEX tutorial[] =
-			{
-				{   0.0f,  0.0f,   0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
-				{ 1280.0f, 0.0f,   0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
-				{ 1280.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
-				{   0.0f,  720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
-			};
-
-			Tex_Set_Draw(pD3Device, pTexture[TUTORIAL_SCENE_TEX],tutorial);
-		}
-
-
-		if (isOption == true)
-		{
-			CUSTOMVERTEX option[] =
-			{
-				{ 300.0f, 100.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
-				{ 980.0f, 100.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
-				{ 980.0f, 600.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
-				{ 300.0f, 600.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
-			};
-
-			Tex_Set_Draw(pD3Device, pTexture[OPTION_SCENE_TEX], option);
-		}
-
-
-
-		End_Scene(pD3Device);
+		Title_Render();
 
 		break;
 
 
 	case STAGE_SELECT_SCENE:
 
-
-
-		Draw_Ready(pD3Device);
-
-		stage_select_time++;
-		if (stage_select_time > 100000)
-		{
-			stage_select_time = 0;
-		}
-
-		float temp;
-
-		/*キャラクターの向きが左向きの時に、キャラクターが右を向いてたら向きを変える*/
-		if (stage_left_direction == true && stage_select_char[0].tu < stage_select_char[1].tu)
-		{
-			temp = stage_select_char[0].tu;
-			stage_select_char[0].tu = stage_select_char[1].tu;
-			stage_select_char[1].tu = temp;
-
-			temp = stage_select_char[2].tu;
-			stage_select_char[2].tu = stage_select_char[3].tu;
-			stage_select_char[3].tu = temp;
-		}
-
-		/*キャラクターの向きが右向きの時に、キャラクターが左を向いてたら向きを変える*/
-		if (stage_left_direction == false && stage_select_char[0].tu > stage_select_char[1].tu)
-		{
-			temp = stage_select_char[0].tu;
-			stage_select_char[0].tu = stage_select_char[1].tu;
-			stage_select_char[1].tu = temp;
-
-			temp = stage_select_char[2].tu;
-			stage_select_char[2].tu = stage_select_char[3].tu;
-			stage_select_char[3].tu = temp;
-		}
-
-
-		if (stage_select_time % 5 == 0)
-		{
-			if (stage_select_char[1].tu == 1.0 && stage_left_direction == false)
-			{
-				stage_select_char[0].tu = 0.0;
-				stage_select_char[1].tu = 0.25;
-				stage_select_char[2].tu = 0.25;
-				stage_select_char[3].tu = 0.0;
-			}
-			else if (stage_select_char[0].tu == 1.0 && stage_left_direction == true)
-			{
-				stage_select_char[0].tu = 0.25;
-				stage_select_char[1].tu = 0.0;
-				stage_select_char[2].tu = 0.0;
-				stage_select_char[3].tu = 0.25;
-			}
-			else
-			{
-				for (int i = 0; i < 4; i++)
-				{
-					stage_select_char[i].tu += 0.25;
-
-				}
-			}
-		}
-
-
-		CUSTOMVERTEX background_STAGESELECT[4];
-
-		for (int i = 0; i < 4; i++)
-		{
-			background_STAGESELECT[i] = background[i];
-		}
-
-
-		Tex_Set_Draw(pD3Device, pTexture[STAGE_SELECT_BACKGROUND_TEX], background_STAGESELECT);
-		Tex_Set_Draw(pD3Device, pTexture[STAGE_SELECT_TEX], stage_select_map);
-		Tex_Set_Draw(pD3Device, pTexture[C0101_TEX], stage_select_char);
-
-
-
-		End_Scene(pD3Device);
-
+		Stage_Select_Render();
 
 		break;
+
 
 	case GAME1_SCENE:
 
 		Draw_Ready(pD3Device);
+
+
+		game_time++;
+		if (game_time == 30000)
+		{
+			game_time = 0;
+		}
 
 		if (isGame1_start == true)
 		{
@@ -646,6 +500,30 @@ void Render()
 		}
 		
 		Tex_Set_Draw(pD3Device, pTexture[GAME_BACKGROUND_TEX], background_GAME1);
+
+
+
+		Tex_Set_Draw(pD3Device, pTexture[HUND_UI_TEX], game_ui_hand);
+
+
+		//雷描画処理
+		if (isThunder_flag == true)
+		{
+			for (int i = 0; i < 4; i++)
+			{
+				thunder[i].x = game_ui_hand[i].x + 8;
+			}
+			Tex_Set_Draw(pD3Device, pTexture[G_01_02_TEX], thunder);
+
+			Thunder_time++;
+
+			if (Thunder_time == 30)
+			{
+				Effect_flag = false;
+				isThunder_flag = false;
+				Thunder_time =0;
+			}
+		}
 
 
 
@@ -698,11 +576,249 @@ void Render()
 				}
 			}
 		}
+
+		
+
+		
+		
+		
+
+		Tex_Set_Draw(pD3Device, pTexture[GAME_UI_TEX], game_ui);
+
+
+		CUSTOMVERTEX  temp_ui_heart[4];
+		CUSTOMVERTEX  temp_ui_apple[4];
+
+		//UIの描画　体力　腹減り度
+		for (int i = 0; i < heart_num; i++)
+		{
+			for (int n = 0; n < 4; n++)
+			{
+				temp_ui_heart[n] = game_ui_heart[n];
+				temp_ui_heart[n].x += (i * 60);
+
+				temp_ui_apple[n] = game_ui_apple[n];
+				temp_ui_apple[n].x += (i * 60);
+
+			}
+
+			Tex_Set_Draw(pD3Device, pTexture[UI_HEART_TEX], temp_ui_heart);
+			Tex_Set_Draw(pD3Device, pTexture[UI_APPLE_TEX], temp_ui_apple);
+		}
+
+
+
+		//通常時のハリネズミ描画
+		//念のために分けてる
+		if (isjump_flag == false && jump_time == 0)
+		{
+			Tex_Set_Draw(pD3Device, pTexture[C_01_01_TEX], player_chara);
+
+		}
+		else if (isjump_flag == false && jump_time != 0)
+		{
+			//寝転がってる時間
+			jump_time--;
+
+			
+
+
+			//寝転る時間が０になったらtutvを通常時のものに
+			if (jump_time == 0)
+			{
+				if (player_chara[0].tu < player_chara[1].tu)
+				{
+					player_chara[0].tu = 0.0f;
+					player_chara[1].tu = 0.25f;
+					player_chara[2].tu = 0.25f;
+					player_chara[3].tu = 0.0f;
+					Tex_Set_Draw(pD3Device, pTexture[C_01_01_TEX], player_chara);
+
+				}
+				else
+				{
+					player_chara[0].tu = 0.25f;
+					player_chara[1].tu = 0.0f;
+					player_chara[2].tu = 0.0f;
+					player_chara[3].tu = 0.25f;
+					Tex_Set_Draw(pD3Device, pTexture[C_01_01_TEX], player_chara);
+
+				}
+			}
+			else
+			{
+
+				if (player_chara[0].tu < player_chara[1].tu)
+				{
+					player_chara[0].tu = 0.5f;
+					player_chara[1].tu = 1.0f;
+					player_chara[2].tu = 1.0f;
+					player_chara[3].tu = 0.5f;
+					Tex_Set_Draw(pD3Device, pTexture[C_01_02_TEX], player_chara);
+				}
+				else
+				{
+					player_chara[0].tu = 1.0f;
+					player_chara[1].tu = 0.5f;
+					player_chara[2].tu = 0.5f;
+					player_chara[3].tu = 1.0f;
+					Tex_Set_Draw(pD3Device, pTexture[C_01_02_TEX], player_chara);
+				}
+			}
+		}
+
+		
+	
+		
+		
+		
+		//ジャンプのフラグが立った時の処理
+		if (isjump_flag == true)
+		{
+
+			//ジャンプ中の描画
+			if (player_chara[0].tu < player_chara[1].tu)
+			{
+				player_chara[0].tu = 0.0f;
+				player_chara[1].tu = 0.5f;
+				player_chara[2].tu = 0.5f;
+				player_chara[3].tu = 0.0f;
+			}
+			else
+			{
+				player_chara[0].tu = 0.5f;
+				player_chara[1].tu = 0.0f;
+				player_chara[2].tu = 0.0f;
+				player_chara[3].tu = 0.5f;
+			}
+
+					
+			Tex_Set_Draw(pD3Device, pTexture[C_01_02_TEX], player_chara);
+						
+			
+			for (int i = 0; i < 4; i++)
+			{
+				player_chara[i].y += v0;
+			}
+			
+			v0 += 1.0;
+
+			//着地時の処理
+			if (v0 > 0)
+			{	
+				
+				jump_time = 10;
+				isjump_flag = false;
+			}
+		}
+		
+
+		if (Map_Hit(player_chara[2].x - 15 - map_error, player_chara[2].y) == false && Map_Hit(player_chara[3].x+15 - map_error, player_chara[3].y) == false)
+		{
+			static float hoge[4];
+			for (int i = 0; i < 4; i++)
+			{
+				hoge[i] = player_chara[i].y;
+			}
+		
+
+
+
+			fall_time += 1.0/13.0;
+
+			if (Map_Hit(player_chara[2].x - 15 - map_error, (hoge[2] + GRAVITY * fall_time * fall_time)) == true)
+			{
+				int px, py;
+				float temp;
+
+				Map_Search(player_chara[2].x - 15 - map_error, (hoge[2] + GRAVITY * fall_time * fall_time), &px, &py);
+
+				temp = player_chara[2].y - (py * 32);
+
+				for (int i = 0; i < 4; i++)
+				{
+					player_chara[i].y -= temp;
+				}
+
+			}
+			else if (Map_Hit(player_chara[3].x + 15 - map_error, (hoge[3] + GRAVITY * fall_time * fall_time)) == true)
+			{
+				int px, py;
+				float temp;
+
+				Map_Search(player_chara[3].x + 15 - map_error, (hoge[3] + GRAVITY * fall_time * fall_time), &px, &py);
+
+				temp = player_chara[3].y - (py * 32);
+
+				for (int i = 0; i < 4; i++)
+				{
+					player_chara[i].y -= temp;
+				}
+			}
+			else
+			{
+				for (int i = 0; i < 4; i++)
+				{
+					player_chara[i].y = hoge[i] + GRAVITY * fall_time * fall_time;
+				}
+			}
+			
+		}
+		else
+		{
+			
+			fall_time = 0;
+		}
+		
+
+		/*
+		if (game_ui_hand[1].x > 1200 && game_ui_hand[1].x < 1270)
+		{
+			for (int i = 0; i < 4; i++)
+			{
+				map_tip[i].x-=3;
+				player_chara[i].x-=3;
+			}
+			map_error -= 3;
+		}
+		else if (game_ui_hand[0].x < 80 && game_ui_hand[0].x > 10)
+		{
+			for (int i = 0; i < 4; i++)
+			{
+				map_tip[i].x+=3;
+				player_chara[i].x+=3;
+			}
+			map_error += 3;
+		}
+		else */
+		
+		if (game_ui_hand[1].x > 1130)
+		{
+			for (int i = 0; i < 4; i++)
+			{
+				map_tip[i].x -= game_ui_hand[1].x - 1130;
+				player_chara[i].x -= game_ui_hand[1].x -1130;
+			}
+			map_error -= game_ui_hand[1].x - 1130;
+		}
+		else if (game_ui_hand[0].x < 100)
+		{
+			for (int i = 0; i < 4; i++)
+			{
+				map_tip[i].x += 100 - game_ui_hand[0].x;
+				player_chara[i].x += 100 - game_ui_hand[0].x;
+			}
+			map_error += 100 - game_ui_hand[0].x;
+		}
+
+
+
 		
 		End_Scene(pD3Device);
 
 
 		break;
+
 
 	case GAME2_SCENE:
 
@@ -795,12 +911,14 @@ void Render()
 
 		break;
 
+
 	case RESULT_SCENE:
 
 
 	
 
 		break;
+
 
 	case GAMEOVER_SCENE:
 
@@ -832,178 +950,181 @@ void Control_Key()
 	{
 	case LOGO_SCENE:
 
-		Key_Check_Dinput(&Key[Z],DIK_Z);
-		Key_Check_Dinput(&Key[ESC], DIK_ESCAPE);
-
-
-
-		if (Key[Z] == PUSH)
-		{
-			current_scene = TITLE_SCENE;
-		}
-
-		if (Key[ESC] == PUSH)
-		{
-			Free_DX();
-			exit(1);
-		}
+		Logo_Control();
+		
 
 		break;
+
 
 	case TITLE_SCENE:
 
-		Key_Check_Dinput(&Key[Z], DIK_Z);
-		Key_Check_Dinput(&Key[UP], DIK_UP);
-		Key_Check_Dinput(&Key[DOWN], DIK_DOWN);
-		Key_Check_Dinput(&Key[ESC], DIK_ESCAPE);
-
-
-		if (Key[DOWN] == PUSH && isTutorial == false && isOption == false)
-		{
-			if (title_select_cursor == 2)
-			{
-				title_select_cursor = 0;
-			}
-			else
-			{
-				title_select_cursor += 1;
-			}
-		}
-
-		if (Key[UP] == PUSH  && isTutorial == false && isOption == false)
-		{
-			if (title_select_cursor == 0)
-			{
-				title_select_cursor = 2;
-			}
-			else
-			{
-				title_select_cursor -= 1;
-			}
-		}
-
-
-		
-		if (Key[Z] == PUSH && isTutorial == false && isOption == false)
-		{
-			if (title_select_cursor == 0)
-			{
-				current_scene = STAGE_SELECT_SCENE;
-			}
-
-
-			if (title_select_cursor == 1)
-			{
-				isTutorial = true;
-			}
-
-			if (title_select_cursor == 2)
-			{
-				isOption = true;
-			}
-		}
-		else if (Key[Z] == PUSH && isTutorial == true)
-		{
-			isTutorial = false;
-		}
-		else if (Key[Z] == PUSH && isOption == true)
-		{
-			isOption = false;
-		}
-
-		
-
-
-
-		if (Key[ESC] == PUSH)
-		{
-			Free_DX();
-			exit(1);
-		}
+		Title_Control();
 
 
 		break;
+
 
 	case STAGE_SELECT_SCENE:
 
-		Key_Check_Dinput(&Key[RIGHT], DIK_RIGHT);
-		Key_Check_Dinput(&Key[LEFT], DIK_LEFT);
-		Key_Check_Dinput(&Key[ESC], DIK_ESCAPE);
-		Key_Check_Dinput(&Key[Z], DIK_Z);
-
-
-
-		if (Key[LEFT] == PUSH)
-		{
-			if (stage_select_cursor != 0)
-			{
-				stage_select_cursor--;
-			}
-
-			stage_left_direction = true;
-
-		}
-
-		if (Key[RIGHT] == PUSH)
-		{
-			if (stage_select_cursor != STAGE_MAX)
-			{
-				stage_select_cursor++;
-			}
-			stage_left_direction = false;
-
-		}
-
-		if (stage_select_char[0].x < (150 + (stage_select_cursor * 850)))
-		{
-			for (int i = 0; i < 4; i++)
-			{
-				stage_select_char[i].x += 5;
-			}
-		}
-		else if (stage_select_char[0].x >(150 + (stage_select_cursor * 850)))
-		{
-			for (int i = 0; i < 4; i++)
-			{
-				stage_select_char[i].x -= 5;
-			}
-		}
-
-		if (Key[Z] == PUSH && stage_select_cursor == 0 && stage_select_char[0].x == 150)
-		{
-			current_scene = GAME1_SCENE;
-			isGame1_start = true;
-		}
-
-		if (Key[Z] == PUSH && stage_select_cursor == 1 && stage_select_char[0].x == 1000)
-		{
-			current_scene = GAME2_SCENE;
-			isGame2_start = true;
-		}
-
-
-
-
-		if (Key[ESC] == PUSH)
-		{
-			Free_DX();
-			exit(1);
-		}
-		//DefWindowProc
+		Stage_Select_Control();
 
 		break;
+
 
 	case GAME1_SCENE:
 
 
 		Key_Check_Dinput(&Key[Z], DIK_Z);
 		Key_Check_Dinput(&Key[X], DIK_X);
+		Key_Check_Dinput(&Key[S], DIK_S);
+		Key_Check_Dinput(&Key[RIGHT], DIK_RIGHT);
+		Key_Check_Dinput(&Key[LEFT], DIK_LEFT);
+		Key_Check_Dinput(&Key[UP], DIK_UP);
+		Key_Check_Dinput(&Key[J], DIK_J);
+		Key_Check_Dinput(&Key[K], DIK_K);
+		Key_Check_Dinput(&Key[L], DIK_L);
+		Key_Check_Dinput(&Key[I], DIK_I);
+
+
+
+
+
+		if (jump_time == 0)
+		{
+			if (Key[L] == ON)
+			{
+				if (player_chara[0].tu > player_chara[1].tu)
+				{
+					float tmp_tu;
+
+					tmp_tu = player_chara[0].tu;
+					player_chara[0].tu = player_chara[1].tu;
+					player_chara[1].tu = tmp_tu;
+
+					tmp_tu = player_chara[2].tu;
+					player_chara[2].tu = player_chara[3].tu;
+					player_chara[3].tu = tmp_tu;
+				}
+
+				//右上と右下のあたり判定
+				if (Map_Hit(player_chara[2].x - map_error, player_chara[2].y - 20) == false && Map_Hit(player_chara[1].x - map_error, player_chara[1].y) == false)
+				{
+					for (int i = 0; i < 4; i++)
+					{
+						player_chara[i].x += 5;
+
+						if (game_time % 4 == 0)
+						{
+							player_chara[i].tu += 0.25f;
+						}
+					}
+				}
+
+				if (player_chara[0].tu == 1.0f)
+				{
+					player_chara[0].tu = 0.0f;
+					player_chara[1].tu = 0.25f;
+					player_chara[2].tu = 0.25f;
+					player_chara[3].tu = 0.0f;
+				}
+			}
+
+
+			if (Key[J] == ON)
+			{
+				if (player_chara[0].tu < player_chara[1].tu)
+				{
+					float tmp_tu;
+
+					tmp_tu = player_chara[0].tu;
+					player_chara[0].tu = player_chara[1].tu;
+					player_chara[1].tu = tmp_tu;
+
+					tmp_tu = player_chara[2].tu;
+					player_chara[2].tu = player_chara[3].tu;
+					player_chara[3].tu = tmp_tu;
+				}
+
+				if (Map_Hit(player_chara[0].x - map_error, player_chara[0].y) == false && Map_Hit(player_chara[3].x - map_error, player_chara[3].y - 20) == false)
+				{
+					for (int i = 0; i < 4; i++)
+					{
+						player_chara[i].x -= 5;
+
+						if (game_time % 4 == 0)
+						{
+							player_chara[i].tu += 0.25f;
+						}
+					}
+				}
+
+
+
+				if (player_chara[1].tu == 1.0f)
+				{
+					player_chara[0].tu = 0.25f;
+					player_chara[1].tu = 0.0f;
+					player_chara[2].tu = 0.0f;
+					player_chara[3].tu = 0.25f;
+				}
+			}
+
+
+
+			if (Key[I] == PUSH)
+			{
+				if ((Map_Hit(player_chara[3].x + 15 - map_error, player_chara[3].y) == true || Map_Hit(player_chara[2].x - 15- map_error, player_chara[2].y) == true))
+				{
+					isjump_flag = true;
+					v0 = -20;
+				}
+			}
+		}
+		
+
+
+
+		if (Key[RIGHT] == ON)
+		{
+			for (int i = 0; i < 4; i++)
+			{
+				game_ui_hand[i].x += 8;
+			}
+		}
+		
+
+		if (Key[LEFT] == ON)
+		{
+			for (int i = 0; i < 4; i++)
+			{
+				game_ui_hand[i].x -= 8;
+			}
+		}
+
+
+		
+
+		
+		if (Key[S] == PUSH && isThunder_flag == false && cooltime_Thunder == 120 && Effect_flag == false)
+		{
+			Effect_flag = true;
+			isThunder_flag = true;
+			cooltime_Thunder = 0;
+			use_Thunder++;
+		}
+		else if (cooltime_Thunder != 120)
+		{
+			cooltime_Thunder++;
+		}
+		
+		
 
 		if (Key[X] == PUSH)
 		{
 			current_scene = STAGE_SELECT_SCENE;
 		}
 	
+
 
 
 		break;
@@ -1023,6 +1144,7 @@ void Control_Key()
 
 
 		break;
+
 
 	case RESULT_SCENE:
 
