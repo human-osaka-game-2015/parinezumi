@@ -4,7 +4,7 @@
 
 
 #define MAP_HEIGHT 20
-#define MAP_WIDTH 300
+#define MAP_WIDTH 130
 #define TIPSIZE 32
 
 extern IDirect3DDevice9* pD3Device;
@@ -36,7 +36,7 @@ bool Map_Hit(int x, int y)
 	}
 
 	
-	if (map[map_y][map_x] != 0)
+	if (map[map_y][map_x] != 0 && map[map_y][map_x] != 11 && map[map_y][map_x] != 12)
 	{
 		return true;
 	}

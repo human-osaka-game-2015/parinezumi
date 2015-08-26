@@ -1,3 +1,4 @@
+
 #include <windows.h>
 #include <mmsystem.h>
 #include <d3dx9.h>
@@ -22,9 +23,8 @@
 /*define*/
 #define TITLE 	TEXT("ハリネズミ　ケンジ君の大冒険!!")
 #define SAFE_RELEASE(p) { if (p) { (p)->Release(); (p)=NULL; } }
-#define PI 3.1415926535
 #define MAP_HEIGHT 20
-#define MAP_WIDTH 300
+#define MAP_WIDTH 130
 #define TIPSIZE 32
 #define GRAVITY 9.8
 
@@ -46,10 +46,12 @@ LPDIRECT3DTEXTURE9 pTexture[TEX_MAX];
 int current_scene = LOGO_SCENE;
 
 int map[MAP_HEIGHT][MAP_WIDTH];
-int heart_num = 5;
+int heart_num = 10;
+int apple_num = 10;
 int map_error = 0;
 
 unsigned int game_time = 0;
+unsigned int death_time = 0;
 
 
 
@@ -57,7 +59,7 @@ unsigned int game_time = 0;
 
 bool isGame1_start = false;
 bool isGame2_start = false;
-
+bool death_flag = false;
 
 
 double fall_time = 0.0;
@@ -91,6 +93,7 @@ int jump_time = 0;
 int cooltime_Thunder = 0;
 int Thunder_time = 0;
 bool isThunder_flag = false;
+bool init_Thunder = false;
 int use_Thunder = 0;
 
 
@@ -103,7 +106,9 @@ int use_Thunder = 0;
 int cooltime_Wind = 0;
 int Wind_time = 0;
 bool isWind_flag = false;
+bool init_Wind = false;
 int use_Wind = 0;
+float Wind_v0 = 0;
 
 
 //神様行動をしているかのフラグ
@@ -159,10 +164,10 @@ CUSTOMVERTEX map_tip[] =
 
 CUSTOMVERTEX player_chara[] =
 {
-	{ 0.0f,   150.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f,  0.0f },
-	{ 100.0f, 150.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.25f, 0.0f },
-	{ 100.0f, 250.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.25f, 1.0f },
-	{ 0.0f,   250.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f,  1.0f },
+	{ 0.0f,   350.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f,  0.0f },
+	{ 100.0f, 350.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.25f, 0.0f },
+	{ 100.0f, 450.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.25f, 1.0f },
+	{ 0.0f,   450.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f,  1.0f },
 };
 
 //ゲームUI 
@@ -190,31 +195,102 @@ CUSTOMVERTEX game_ui_heart[] =
 	{ 0.0f,  660.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
 };
 
+CUSTOMVERTEX thunder_icon[] =
+{
+	{ 5.0f,  670.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 55.0f, 670.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 55.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{ 5.0f,  720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+};
+
+CUSTOMVERTEX wind_icon[] =
+{
+	{ 60.0f,  670.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 110.0f, 670.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 110.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{ 60.0f,  720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+};
+
 CUSTOMVERTEX game_ui_hand[]
 {
 	{ 190.0f,  0.0f,  0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
-	{ 280.0f, 0.0f,  0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
-	{ 280.0f, 60.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{ 280.0f,  0.0f,  0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 280.0f,  60.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
 	{ 190.0f,  60.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
 };
 
-
 CUSTOMVERTEX thunder[] =
 {
-	{ 0.0f, 60.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
-	{ 60.0f, 60.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 0.0f,  60.0f,  0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 60.0f, 60.0f,  0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
 	{ 60.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
-	{ 0.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+	{ 0.0f,  720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
 };
 
 CUSTOMVERTEX wind[] =
 {
-	{ 0.0f, 400.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 0.0f,   400.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
 	{ 200.0f, 400.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
 	{ 200.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{ 0.0f,   720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+};
+
+
+
+
+
+
+
+CUSTOMVERTEX game_over[] =
+{
+	{ 0.0f,    0.0f,   0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 1280.0f, 0.0f,   0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 1280.0f, 360.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{ 0.0f,    360.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+};
+
+
+CUSTOMVERTEX gameover_black[] =
+{
+	{ 0.0f,   400.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 200.0f, 400.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 200.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{ 0.0f,   720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+};
+
+
+
+CUSTOMVERTEX gameover_black2[] =
+{
+	{ 1280.0f, 0.0f,   0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 1280.0f, 0.0f,   0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 1280.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{ 1280.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+};
+
+CUSTOMVERTEX gameover_black3[] =
+{
+	{ 0.0f, 0.0f,   0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 0.0f, 0.0f,   0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 0.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
 	{ 0.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
 };
 
+CUSTOMVERTEX gameover_black4[] =
+{
+	{ 0.0f,    0.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 1280.0f, 0.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 1280.0f, 0.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{ 0.0f,    0.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+};
+
+CUSTOMVERTEX gameover_black5[] =
+{
+	{ 0.0f,    720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 0.0f },
+	{ 1280.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 0.0f },
+	{ 1280.0f, 720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 1.0f, 1.0f },
+	{ 0.0f,    720.0f, 0.5f, 1.0f, 0xFFFFFFFF, 0.0f, 1.0f },
+};
 
 
 /*関数のプロトタイプ宣言*/
@@ -301,15 +377,44 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	Tex_Load("Tex/LOGO_test.png", &pTexture[LOGO_TEX],pD3Device);
 	Tex_Load("Tex/TITLE_test.png", &pTexture[TITLE_BACKGROUND_TEX], pD3Device);
 	Tex_Load("Tex/STAGE_SELECT_test.png", &pTexture[STAGE_SELECT_TEX], pD3Device);
-	Tex_Load("Tex/Test.bmp", &pTexture[TEST_TEX], pD3Device);
-	Tex_Load("Tex/GAME.png", &pTexture[GAME_BACKGROUND_TEX], pD3Device);
+	
 	Tex_Load("Tex/GAMECLEAR.png", &pTexture[RESULT_TEX], pD3Device);
-	Tex_Load("Tex/GAMEOVER.png", &pTexture[GAMEOVER_TEX], pD3Device);
+
+
 	Tex_Load("Tex/black.png", &pTexture[BLACK_TEX], pD3Device);
+
 	Tex_Load("Tex/STAGE_SELECT_test.png", &pTexture[STAGE_SELECT_BACKGROUND_TEX],pD3Device);
 	Tex_Load("Tex/option_scene.png", &pTexture[OPTION_SCENE_TEX], pD3Device);
 	Tex_Load("Tex/tutorial_scene.png", &pTexture[TUTORIAL_SCENE_TEX], pD3Device);
 	Tex_Load("Tex/main_game_ui.png", &pTexture[GAME_UI_TEX], pD3Device);
+
+	
+	
+	//背景
+	Tex_Load("Tex/H_02.png", &pTexture[H_02_TEX], pD3Device);
+
+
+	//マップチップ
+	Tex_Load("Tex/M_01_01.png", &pTexture[M_01_01_TEX], pD3Device);
+	Tex_Load("Tex/M_01_02.png", &pTexture[M_01_02_TEX], pD3Device);
+	Tex_Load("Tex/M_01_03.png", &pTexture[M_01_03_TEX], pD3Device);
+
+	Tex_Load("Tex/M_02_01.png", &pTexture[M_02_01_TEX], pD3Device);
+	Tex_Load("Tex/M_02_02.png", &pTexture[M_02_02_TEX], pD3Device);
+
+	Tex_Load("Tex/M_03_01.png", &pTexture[M_03_01_TEX], pD3Device);
+	Tex_Load_EX("Tex/M_03_04.png", &pTexture[M_03_04_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("Tex/M_03_05.png", &pTexture[M_03_05_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("Tex/M_03_08.png", &pTexture[M_03_08_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("Tex/M_03_12.png", &pTexture[M_03_12_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("Tex/M_03_14.png", &pTexture[M_03_14_TEX], pD3Device, 255, 255, 255, 255);
+
+
+
+
+
+
+
 	
 	
 	Tex_Load_EX("Tex/stage_select_map.png", &pTexture[STAGE_SELECT_TEX], pD3Device,255,255,255,255);
@@ -317,6 +422,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	Tex_Load_EX("Tex/tutorial.png", &pTexture[TUTORIAL_TEX], pD3Device, 255, 255, 255, 255);
 	Tex_Load_EX("Tex/option.png", &pTexture[OPTION_TEX], pD3Device, 255, 255, 255, 255);
 	Tex_Load_EX("Tex/title_ui.png", &pTexture[UI_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("Tex/gameover_effect.png", &pTexture[GAMEOVER_EFFECT_TEX], pD3Device, 255, 255, 255, 255);
 
 	//神様エフェクト＆UI
 	Tex_Load_EX("Tex/G_01_02.png", &pTexture[G_01_02_TEX], pD3Device, 255, 255, 255, 255);
@@ -324,16 +430,26 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 	Tex_Load_EX("Tex/G_test.png", &pTexture[HUND_UI_TEX], pD3Device, 255, 255, 255, 255);
 	Tex_Load_EX("Tex/heart.png", &pTexture[UI_HEART_TEX], pD3Device, 255, 255, 255, 255);
-	Tex_Load_EX("Tex/apple_test.png", &pTexture[UI_APPLE_TEX], pD3Device, 255, 0, 0, 0);
+	Tex_Load_EX("Tex/apple_test.png", &pTexture[UI_APPLE_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("Tex/heart2.png", &pTexture[UI_HEART_TEX2], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("Tex/apple_test2.png", &pTexture[UI_APPLE_TEX2], pD3Device, 255, 255, 255, 255);
 
 
-
-	//G_01_02.png
 
 
 	//ハリネズミ
 	Tex_Load_EX("Tex/C_01_01.png", &pTexture[C_01_01_TEX], pD3Device, 255, 255, 255, 255);
 	Tex_Load_EX("Tex/C_01_02.png", &pTexture[C_01_02_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("Tex/C_01_03.png", &pTexture[C_01_03_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("Tex/C_01_04.png", &pTexture[C_01_04_TEX], pD3Device, 255, 255, 255, 255);
+	Tex_Load_EX("Tex/C_01_05.png", &pTexture[C_01_05_TEX], pD3Device, 255, 255, 255, 255);
+
+
+
+
+	Tex_Load_EX("Tex/GAMEOVER.png", &pTexture[GAMEOVER_TEX], pD3Device, 255, 0, 0, 0);
+
+
 
 
 
@@ -366,8 +482,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 			{
 
 				Render();
-
-
 				Control();
 
 				
@@ -476,7 +590,7 @@ void Render()
 		if (isGame1_start == true)
 		{
 			FILE*  fp;
-			fopen_s(&fp, "Game1.csv", "r");
+			fopen_s(&fp, "map.csv", "r");
 
 			for (int i = 0; i < MAP_HEIGHT; i++)
 			{
@@ -499,7 +613,7 @@ void Render()
 			background_GAME1[i] = background[i];
 		}
 		
-		Tex_Set_Draw(pD3Device, pTexture[GAME_BACKGROUND_TEX], background_GAME1);
+		Tex_Set_Draw(pD3Device, pTexture[H_02_TEX], background_GAME1);
 
 
 
@@ -509,10 +623,16 @@ void Render()
 		//雷描画処理
 		if (isThunder_flag == true)
 		{
-			for (int i = 0; i < 4; i++)
+			//雷の位置初期化
+			if (init_Thunder == true)
 			{
-				thunder[i].x = game_ui_hand[i].x + 8;
+				for (int i = 0; i < 4; i++)
+				{
+					thunder[i].x = game_ui_hand[i].x + 8;
+				}
+				init_Thunder = false;
 			}
+		
 			Tex_Set_Draw(pD3Device, pTexture[G_01_02_TEX], thunder);
 
 			Thunder_time++;
@@ -522,6 +642,76 @@ void Render()
 				Effect_flag = false;
 				isThunder_flag = false;
 				Thunder_time =0;
+			}
+		}
+
+		if (isWind_flag == true)
+		{
+			//風の初期化フラグ
+			if (init_Wind == true)
+			{
+				wind[0].x = game_ui_hand[0].x - 50;
+				wind[0].y = game_ui_hand[0].y + 600;
+
+				wind[1].x = game_ui_hand[1].x + 50;
+				wind[1].y = game_ui_hand[1].y + 600;
+
+				wind[2].x = game_ui_hand[2].x + 50;
+				wind[2].y = game_ui_hand[1].y + 600;
+
+				wind[3].x = game_ui_hand[3].x - 50;
+				wind[3].y = game_ui_hand[0].y + 600;
+
+				for (int i = 0; i < 4; i++)
+				{
+					wind[i].color = 0xFFFFFFFF;
+				}
+
+				init_Wind = false;
+			}
+
+
+			//あたり判定
+			if (wind[0].x < player_chara[1].x && wind[1].x > player_chara[0].x && wind[2].y > player_chara[2].y)
+			{
+				for (int i = 0; i < 4; i++)
+				{
+
+					player_chara[i].y += Wind_v0;
+					fall_time = 0;
+				}
+			}
+			else if (wind[0].x < player_chara[1].x && wind[1].x > player_chara[0].x && wind[3].y > player_chara[3].y)
+			{
+				for (int i = 0; i < 4; i++)
+				{
+
+					player_chara[i].y += Wind_v0;
+					fall_time = 0;
+
+				}
+			}
+
+
+			Wind_v0 += 0.05f;
+
+
+			//風の処理
+			wind[0].y -= 10;
+			wind[1].y -= 10;
+			for (int i = 0; i < 4; i++)
+			{
+				wind[i].color -= 0x03000000;
+			}
+			
+
+			Tex_Set_Draw(pD3Device, pTexture[G_01_04_TEX], wind);
+
+			if (wind[3].color <= 0x00FFFFFF)
+			{
+				Effect_flag = false;
+				isWind_flag = false;
+				Wind_time = 0;
 			}
 		}
 
@@ -549,6 +739,37 @@ void Render()
 
 				if (map[y][x] == 1)
 				{
+					Tex_Set_Draw(pD3Device, pTexture[M_01_01_TEX], tmp_map1);
+				}
+
+				if (map[y][x] == 2)
+				{
+					Tex_Set_Draw(pD3Device, pTexture[M_01_02_TEX], tmp_map1);
+				}
+
+				if (map[y][x] == 3)
+				{
+					Tex_Set_Draw(pD3Device, pTexture[M_01_03_TEX], tmp_map1);
+				}
+
+				if (map[y][x] == 11)
+				{
+					Tex_Set_Draw(pD3Device, pTexture[M_03_04_TEX], tmp_map1);
+				}
+
+				if (map[y][x] == 12)
+				{
+					Tex_Set_Draw(pD3Device, pTexture[M_03_05_TEX], tmp_map1);
+				}
+
+				if (map[y][x] == 15)
+				{
+					Tex_Set_Draw(pD3Device, pTexture[M_03_08_TEX], tmp_map1);
+				}
+
+
+				/*if (map[y][x] == 1)
+				{
 					tmp_map1[0].tu = 0.25;
 					tmp_map1[0].tv = 0.0;
 					tmp_map1[1].tu = 0.5;
@@ -573,15 +794,11 @@ void Render()
 					tmp_map1[3].tv = 1.0;
 
 					Tex_Set_Draw(pD3Device, pTexture[TEST_TEX], tmp_map1);
-				}
+				}*/
 			}
 		}
 
-		
 
-		
-		
-		
 
 		Tex_Set_Draw(pD3Device, pTexture[GAME_UI_TEX], game_ui);
 
@@ -589,227 +806,410 @@ void Render()
 		CUSTOMVERTEX  temp_ui_heart[4];
 		CUSTOMVERTEX  temp_ui_apple[4];
 
-		//UIの描画　体力　腹減り度
-		for (int i = 0; i < heart_num; i++)
+		
+		//ハートの描画
+		if (heart_num != 1)
+		{
+			for (int i = 0; i < heart_num / 2; i++)
+			{
+				for (int n = 0; n < 4; n++)
+				{
+					temp_ui_heart[n] = game_ui_heart[n];
+					temp_ui_heart[n].x += (i * 60);
+				}
+				Tex_Set_Draw(pD3Device, pTexture[UI_HEART_TEX], temp_ui_heart);
+
+				if (heart_num % 2 != 0)
+				{
+					for (int n = 0; n < 4; n++)
+					{
+						temp_ui_heart[n] = game_ui_heart[n];
+						temp_ui_heart[n].x += ((heart_num / 2) * 60);
+					}
+					Tex_Set_Draw(pD3Device, pTexture[UI_HEART_TEX2], temp_ui_heart);
+				}
+			}
+		}
+		else
 		{
 			for (int n = 0; n < 4; n++)
 			{
 				temp_ui_heart[n] = game_ui_heart[n];
-				temp_ui_heart[n].x += (i * 60);
-
-				temp_ui_apple[n] = game_ui_apple[n];
-				temp_ui_apple[n].x += (i * 60);
-
 			}
-
-			Tex_Set_Draw(pD3Device, pTexture[UI_HEART_TEX], temp_ui_heart);
-			Tex_Set_Draw(pD3Device, pTexture[UI_APPLE_TEX], temp_ui_apple);
+			Tex_Set_Draw(pD3Device, pTexture[UI_HEART_TEX2], temp_ui_heart);
 		}
 
 
-
-		//通常時のハリネズミ描画
-		//念のために分けてる
-		if (isjump_flag == false && jump_time == 0)
+		//UIのリンゴの描画
+		if (apple_num != 1)
 		{
-			Tex_Set_Draw(pD3Device, pTexture[C_01_01_TEX], player_chara);
+			for (int i = 0; i < apple_num / 2; i++)
+			{
+				for (int n = 0; n < 4; n++)
+				{
+					temp_ui_apple[n] = game_ui_apple[n];
+					temp_ui_apple[n].x += (i * 60);
+				}
+				Tex_Set_Draw(pD3Device, pTexture[UI_APPLE_TEX], temp_ui_apple);
 
+				if (apple_num % 2 != 0)
+				{
+					for (int n = 0; n < 4; n++)
+					{
+						temp_ui_apple[n] = game_ui_apple[n];
+						temp_ui_apple[n].x += ((apple_num / 2) * 60);
+					}
+					Tex_Set_Draw(pD3Device, pTexture[UI_APPLE_TEX2], temp_ui_apple);
+				}
+			}
 		}
-		else if (isjump_flag == false && jump_time != 0)
+		else
 		{
-			//寝転がってる時間
-			jump_time--;
+			for (int n = 0; n < 4; n++)
+			{
+				temp_ui_apple[n] = game_ui_apple[n];
+			}
+			Tex_Set_Draw(pD3Device, pTexture[UI_APPLE_TEX2], temp_ui_apple);
+		}
 
+
+		for (int i = 0; i < 4; i++)
+		{
+			if (cooltime_Thunder == 240)
+			{
+				thunder_icon[i].color = 0xFFFFFFFF;
+			}
+			else if (cooltime_Thunder == 0)
+			{
+				thunder_icon[i].color = 0x00FFFFFF;
+			}
+			else
+			{
+				thunder_icon[i].color += 0x01000000;
+			}
+		}
+		Tex_Set_Draw(pD3Device, pTexture[G_01_02_TEX], thunder_icon);
+
+
+		for (int i = 0; i < 4; i++)
+		{
+			if (cooltime_Wind == 120)
+			{
+				wind_icon[i].color = 0xFFFFFFFF;
+			}
+			else if (cooltime_Wind == 0)
+			{
+				wind_icon[i].color = 0x00FFFFFF;
+			}
+			else
+			{
+				wind_icon[i].color += 0x02000000;
+			}
+		}
+		Tex_Set_Draw(pD3Device, pTexture[G_01_04_TEX], wind_icon);
+
+
+		//ライフが０になった時に死亡フラグを立てる
+		if (heart_num <= 0 && death_flag == false)
+		{
+			player_chara[0].tu = 0.0f;
+			player_chara[1].tu = 0.5f;
+			player_chara[2].tu = 0.5f;
+			player_chara[3].tu = 0.0f;
+
+			gameover_black[0].x = player_chara[0].x - 10000;
+			gameover_black[0].y = player_chara[0].y - 10000;
+			gameover_black[1].x = player_chara[1].x + 10000;
+			gameover_black[1].y = player_chara[1].y - 10000;
+			gameover_black[2].x = player_chara[2].x + 10000;
+			gameover_black[2].y = player_chara[2].y + 10000;
+			gameover_black[3].x = player_chara[3].x - 10000;
+			gameover_black[3].y = player_chara[3].y + 10000;
 			
 
+			death_flag = true;
+		}
 
-			//寝転る時間が０になったらtutvを通常時のものに
-			if (jump_time == 0)
+
+
+
+
+		if (death_flag == false)
+		{
+			//通常時のハリネズミ描画
+			//念のために分けてる
+			if (isjump_flag == false && jump_time == 0)
 			{
+				Tex_Set_Draw(pD3Device, pTexture[C_01_01_TEX], player_chara);
+			}
+			else if (isjump_flag == false && jump_time != 0)
+			{
+				//寝転がってる時間
+				jump_time--;
+
+
+
+				//寝転る時間が０になったらtutvを通常時のものに
+				if (jump_time == 0)
+				{
+					if (player_chara[0].tu < player_chara[1].tu)
+					{
+						player_chara[0].tu = 0.0f;
+						player_chara[1].tu = 0.25f;
+						player_chara[2].tu = 0.25f;
+						player_chara[3].tu = 0.0f;
+						Tex_Set_Draw(pD3Device, pTexture[C_01_01_TEX], player_chara);
+					}
+					else
+					{
+						player_chara[0].tu = 0.25f;
+						player_chara[1].tu = 0.0f;
+						player_chara[2].tu = 0.0f;
+						player_chara[3].tu = 0.25f;
+						Tex_Set_Draw(pD3Device, pTexture[C_01_01_TEX], player_chara);
+					}
+				}
+				else
+				{
+					if (player_chara[0].tu < player_chara[1].tu)
+					{
+						player_chara[0].tu = 0.5f;
+						player_chara[1].tu = 1.0f;
+						player_chara[2].tu = 1.0f;
+						player_chara[3].tu = 0.5f;
+						Tex_Set_Draw(pD3Device, pTexture[C_01_02_TEX], player_chara);
+					}
+					else
+					{
+						player_chara[0].tu = 1.0f;
+						player_chara[1].tu = 0.5f;
+						player_chara[2].tu = 0.5f;
+						player_chara[3].tu = 1.0f;
+						Tex_Set_Draw(pD3Device, pTexture[C_01_02_TEX], player_chara);
+					}
+				}
+			}
+
+
+
+
+			//ジャンプのフラグが立った時の処理
+			if (isjump_flag == true)
+			{
+
+				//ジャンプ中の描画
 				if (player_chara[0].tu < player_chara[1].tu)
 				{
 					player_chara[0].tu = 0.0f;
-					player_chara[1].tu = 0.25f;
-					player_chara[2].tu = 0.25f;
-					player_chara[3].tu = 0.0f;
-					Tex_Set_Draw(pD3Device, pTexture[C_01_01_TEX], player_chara);
-
-				}
-				else
-				{
-					player_chara[0].tu = 0.25f;
-					player_chara[1].tu = 0.0f;
-					player_chara[2].tu = 0.0f;
-					player_chara[3].tu = 0.25f;
-					Tex_Set_Draw(pD3Device, pTexture[C_01_01_TEX], player_chara);
-
-				}
-			}
-			else
-			{
-
-				if (player_chara[0].tu < player_chara[1].tu)
-				{
-					player_chara[0].tu = 0.5f;
-					player_chara[1].tu = 1.0f;
-					player_chara[2].tu = 1.0f;
-					player_chara[3].tu = 0.5f;
-					Tex_Set_Draw(pD3Device, pTexture[C_01_02_TEX], player_chara);
-				}
-				else
-				{
-					player_chara[0].tu = 1.0f;
 					player_chara[1].tu = 0.5f;
 					player_chara[2].tu = 0.5f;
-					player_chara[3].tu = 1.0f;
-					Tex_Set_Draw(pD3Device, pTexture[C_01_02_TEX], player_chara);
+					player_chara[3].tu = 0.0f;
+				}
+				else
+				{
+					player_chara[0].tu = 0.5f;
+					player_chara[1].tu = 0.0f;
+					player_chara[2].tu = 0.0f;
+					player_chara[3].tu = 0.5f;
+				}
+
+
+				Tex_Set_Draw(pD3Device, pTexture[C_01_02_TEX], player_chara);
+
+
+				for (int i = 0; i < 4; i++)
+				{
+					player_chara[i].y += v0;
+				}
+
+				v0 += 1.0;
+
+				//着地時の処理
+				if (v0 > 0)
+				{
+					jump_time = 10;
+					isjump_flag = false;
 				}
 			}
-		}
 
-		
-	
-		
-		
-		
-		//ジャンプのフラグが立った時の処理
-		if (isjump_flag == true)
-		{
-
-			//ジャンプ中の描画
-			if (player_chara[0].tu < player_chara[1].tu)
+			//落下時にめり込む時の処理
+			if (Map_Hit(int(player_chara[2].x - 15 - map_error), int(player_chara[2].y)) == false && Map_Hit(int(player_chara[3].x + 15 - map_error), int(player_chara[3].y)) == false)
 			{
-				player_chara[0].tu = 0.0f;
-				player_chara[1].tu = 0.5f;
-				player_chara[2].tu = 0.5f;
-				player_chara[3].tu = 0.0f;
+
+				fall_time += 1.0 / 13.0;
+
+				if (Map_Hit(int(player_chara[2].x - 15 - map_error), int((player_chara[2].y + GRAVITY * fall_time * fall_time))) == true)
+				{
+					int px, py;
+					float temp;
+
+					Map_Search(int(player_chara[2].x - 15 - map_error), int((player_chara[2].y + GRAVITY * fall_time * fall_time)), &px, &py);
+
+					temp = player_chara[2].y - (py * 32);
+
+					for (int i = 0; i < 4; i++)
+					{
+						player_chara[i].y -= temp;
+					}
+
+				}
+				else if (Map_Hit(int(player_chara[3].x + 15 - map_error), int((player_chara[3].y + GRAVITY * fall_time * fall_time))) == true)
+				{
+					int px, py;
+					float temp;
+
+					Map_Search(int(player_chara[3].x + 15 - map_error), int((player_chara[3].y + GRAVITY * fall_time * fall_time)), &px, &py);
+
+					temp = player_chara[3].y - (py * 32);
+
+					for (int i = 0; i < 4; i++)
+					{
+						player_chara[i].y -= temp;
+					}
+				}
+				else
+				{
+					for (int i = 0; i < 4; i++)
+					{
+						player_chara[i].y = float(player_chara[i].y + GRAVITY * fall_time * fall_time);
+					}
+				}
+
 			}
 			else
 			{
-				player_chara[0].tu = 0.5f;
-				player_chara[1].tu = 0.0f;
-				player_chara[2].tu = 0.0f;
-				player_chara[3].tu = 0.5f;
+				fall_time = 0;
 			}
 
-					
-			Tex_Set_Draw(pD3Device, pTexture[C_01_02_TEX], player_chara);
-						
-			
-			for (int i = 0; i < 4; i++)
-			{
-				player_chara[i].y += v0;
-			}
-			
-			v0 += 1.0;
 
-			//着地時の処理
-			if (v0 > 0)
-			{	
-				
-				jump_time = 10;
-				isjump_flag = false;
-			}
-		}
-		
-
-		if (Map_Hit(player_chara[2].x - 15 - map_error, player_chara[2].y) == false && Map_Hit(player_chara[3].x+15 - map_error, player_chara[3].y) == false)
-		{
-			static float hoge[4];
-			for (int i = 0; i < 4; i++)
-			{
-				hoge[i] = player_chara[i].y;
-			}
-		
-
-
-
-			fall_time += 1.0/13.0;
-
-			if (Map_Hit(player_chara[2].x - 15 - map_error, (hoge[2] + GRAVITY * fall_time * fall_time)) == true)
-			{
-				int px, py;
-				float temp;
-
-				Map_Search(player_chara[2].x - 15 - map_error, (hoge[2] + GRAVITY * fall_time * fall_time), &px, &py);
-
-				temp = player_chara[2].y - (py * 32);
-
-				for (int i = 0; i < 4; i++)
-				{
-					player_chara[i].y -= temp;
-				}
-
-			}
-			else if (Map_Hit(player_chara[3].x + 15 - map_error, (hoge[3] + GRAVITY * fall_time * fall_time)) == true)
-			{
-				int px, py;
-				float temp;
-
-				Map_Search(player_chara[3].x + 15 - map_error, (hoge[3] + GRAVITY * fall_time * fall_time), &px, &py);
-
-				temp = player_chara[3].y - (py * 32);
-
-				for (int i = 0; i < 4; i++)
-				{
-					player_chara[i].y -= temp;
-				}
-			}
-			else
+			//神の手カーソル移動
+			if (game_ui_hand[1].x > 1160 && map_error > -2880)
 			{
 				for (int i = 0; i < 4; i++)
 				{
-					player_chara[i].y = hoge[i] + GRAVITY * fall_time * fall_time;
+					map_tip[i].x -= 5;
+					player_chara[i].x -= 5;
+				}
+				map_error -= 5;
+
+				if (game_ui_hand[1].x > 1230)
+				{
+					for (int i = 0; i < 4; i++)
+					{
+						map_tip[i].x -= 5;
+						player_chara[i].x -= 5;
+					}
+					map_error -= 5;
+
+					if (game_ui_hand[1].x > 1280)
+					{
+						for (int i = 0; i < 4; i++)
+						{
+							map_tip[i].x -= 10;
+							player_chara[i].x -= 10;
+						}
+						map_error -= 10;
+					}
 				}
 			}
-			
+			else if (game_ui_hand[0].x < 120 && map_error < 0)
+			{
+				for (int i = 0; i < 4; i++)
+				{
+					map_tip[i].x += 5;
+					player_chara[i].x += 5;
+				}
+				map_error += 5;
+
+				if (game_ui_hand[0].x < 50)
+				{
+					for (int i = 0; i < 4; i++)
+					{
+						map_tip[i].x += 5;
+						player_chara[i].x += 5;
+					}
+					map_error += 5;
+
+					if (game_ui_hand[0].x < 0)
+					{
+						for (int i = 0; i < 4; i++)
+						{
+							map_tip[i].x += 10;
+							player_chara[i].x += 10;
+						}
+						map_error += 10;
+					}
+				}
+			}
 		}
 		else
 		{
 			
-			fall_time = 0;
-		}
-		
 
-		/*
-		if (game_ui_hand[1].x > 1200 && game_ui_hand[1].x < 1270)
-		{
-			for (int i = 0; i < 4; i++)
+			if (gameover_black[0].x > gameover_black[1].x)
 			{
-				map_tip[i].x-=3;
-				player_chara[i].x-=3;
+				Tex_Set_Draw(pD3Device, pTexture[GAME_UI_TEX], gameover_black2);
+				Tex_Set_Draw(pD3Device, pTexture[GAME_UI_TEX], gameover_black3);
+				Tex_Set_Draw(pD3Device, pTexture[GAME_UI_TEX], gameover_black4);
+				Tex_Set_Draw(pD3Device, pTexture[GAME_UI_TEX], gameover_black5);
+				Tex_Set_Draw(pD3Device, pTexture[GAMEOVER_TEX], game_over);
+				Tex_Set_Draw(pD3Device, pTexture[GAMEOVER_EFFECT_TEX], gameover_black);
+
 			}
-			map_error -= 3;
-		}
-		else if (game_ui_hand[0].x < 80 && game_ui_hand[0].x > 10)
-		{
-			for (int i = 0; i < 4; i++)
+			else
 			{
-				map_tip[i].x+=3;
-				player_chara[i].x+=3;
+				if (death_time % 25 == 0)
+				{
+					if (player_chara[0].tu == 0.5f)
+					{
+						player_chara[0].tu = 0.0f;
+						player_chara[1].tu = 0.5f;
+						player_chara[2].tu = 0.5f;
+						player_chara[3].tu = 0.0f;
+					}
+					else if (player_chara[0].tu == 0.0f)
+					{
+						player_chara[0].tu = 0.5f;
+						player_chara[1].tu = 1.0f;
+						player_chara[2].tu = 1.0f;
+						player_chara[3].tu = 0.5f;
+					}
+
+				}
+				death_time++;
+
+
+
+				gameover_black[0].x += 100;
+				gameover_black[0].y += 100;
+				gameover_black[1].x -= 100;
+				gameover_black[1].y += 100;
+				gameover_black[2].x -= 100;
+				gameover_black[2].y -= 100;
+				gameover_black[3].x += 100;
+				gameover_black[3].y -= 100;
+
+
+				gameover_black2[0].x = gameover_black[1].x;
+				gameover_black2[3].x = gameover_black[2].x;
+				gameover_black3[1].x = gameover_black[0].x;
+				gameover_black3[2].x = gameover_black[3].x;
+				gameover_black4[2].y = gameover_black[1].y;
+				gameover_black4[3].y = gameover_black[0].y;
+				gameover_black5[0].y = gameover_black[3].y;
+				gameover_black5[1].y = gameover_black[2].y;
+
+
+
+				Tex_Set_Draw(pD3Device, pTexture[C_01_05_TEX], player_chara);
+				Tex_Set_Draw(pD3Device, pTexture[GAMEOVER_EFFECT_TEX], gameover_black);
+				Tex_Set_Draw(pD3Device, pTexture[GAME_UI_TEX], gameover_black2);
+				Tex_Set_Draw(pD3Device, pTexture[GAME_UI_TEX], gameover_black3);
+				Tex_Set_Draw(pD3Device, pTexture[GAME_UI_TEX], gameover_black4);
+				Tex_Set_Draw(pD3Device, pTexture[GAME_UI_TEX], gameover_black5);
 			}
-			map_error += 3;
 		}
-		else */
 		
-		if (game_ui_hand[1].x > 1130)
-		{
-			for (int i = 0; i < 4; i++)
-			{
-				map_tip[i].x -= game_ui_hand[1].x - 1130;
-				player_chara[i].x -= game_ui_hand[1].x -1130;
-			}
-			map_error -= game_ui_hand[1].x - 1130;
-		}
-		else if (game_ui_hand[0].x < 100)
-		{
-			for (int i = 0; i < 4; i++)
-			{
-				map_tip[i].x += 100 - game_ui_hand[0].x;
-				player_chara[i].x += 100 - game_ui_hand[0].x;
-			}
-			map_error += 100 - game_ui_hand[0].x;
-		}
 
 
 
@@ -818,6 +1218,8 @@ void Render()
 
 
 		break;
+
+
 
 
 	case GAME2_SCENE:
@@ -850,7 +1252,7 @@ void Render()
 			background_GAME2[i] = background[i];
 		}
 
-		Tex_Set_Draw(pD3Device, pTexture[GAME_BACKGROUND_TEX], background_GAME2);
+		Tex_Set_Draw(pD3Device, pTexture[H_02_TEX], background_GAME2);
 
 
 
@@ -984,145 +1386,173 @@ void Control_Key()
 		Key_Check_Dinput(&Key[K], DIK_K);
 		Key_Check_Dinput(&Key[L], DIK_L);
 		Key_Check_Dinput(&Key[I], DIK_I);
+		Key_Check_Dinput(&Key[W], DIK_W);
+		Key_Check_Dinput(&Key[A], DIK_A);
 
-
-
-
-
-		if (jump_time == 0)
+		if (Key[A] == PUSH)
 		{
-			if (Key[L] == ON)
-			{
-				if (player_chara[0].tu > player_chara[1].tu)
-				{
-					float tmp_tu;
-
-					tmp_tu = player_chara[0].tu;
-					player_chara[0].tu = player_chara[1].tu;
-					player_chara[1].tu = tmp_tu;
-
-					tmp_tu = player_chara[2].tu;
-					player_chara[2].tu = player_chara[3].tu;
-					player_chara[3].tu = tmp_tu;
-				}
-
-				//右上と右下のあたり判定
-				if (Map_Hit(player_chara[2].x - map_error, player_chara[2].y - 20) == false && Map_Hit(player_chara[1].x - map_error, player_chara[1].y) == false)
-				{
-					for (int i = 0; i < 4; i++)
-					{
-						player_chara[i].x += 5;
-
-						if (game_time % 4 == 0)
-						{
-							player_chara[i].tu += 0.25f;
-						}
-					}
-				}
-
-				if (player_chara[0].tu == 1.0f)
-				{
-					player_chara[0].tu = 0.0f;
-					player_chara[1].tu = 0.25f;
-					player_chara[2].tu = 0.25f;
-					player_chara[3].tu = 0.0f;
-				}
-			}
-
-
-			if (Key[J] == ON)
-			{
-				if (player_chara[0].tu < player_chara[1].tu)
-				{
-					float tmp_tu;
-
-					tmp_tu = player_chara[0].tu;
-					player_chara[0].tu = player_chara[1].tu;
-					player_chara[1].tu = tmp_tu;
-
-					tmp_tu = player_chara[2].tu;
-					player_chara[2].tu = player_chara[3].tu;
-					player_chara[3].tu = tmp_tu;
-				}
-
-				if (Map_Hit(player_chara[0].x - map_error, player_chara[0].y) == false && Map_Hit(player_chara[3].x - map_error, player_chara[3].y - 20) == false)
-				{
-					for (int i = 0; i < 4; i++)
-					{
-						player_chara[i].x -= 5;
-
-						if (game_time % 4 == 0)
-						{
-							player_chara[i].tu += 0.25f;
-						}
-					}
-				}
-
-
-
-				if (player_chara[1].tu == 1.0f)
-				{
-					player_chara[0].tu = 0.25f;
-					player_chara[1].tu = 0.0f;
-					player_chara[2].tu = 0.0f;
-					player_chara[3].tu = 0.25f;
-				}
-			}
-
-
-
-			if (Key[I] == PUSH)
-			{
-				if ((Map_Hit(player_chara[3].x + 15 - map_error, player_chara[3].y) == true || Map_Hit(player_chara[2].x - 15- map_error, player_chara[2].y) == true))
-				{
-					isjump_flag = true;
-					v0 = -20;
-				}
-			}
-		}
-		
-
-
-
-		if (Key[RIGHT] == ON)
-		{
-			for (int i = 0; i < 4; i++)
-			{
-				game_ui_hand[i].x += 8;
-			}
-		}
-		
-
-		if (Key[LEFT] == ON)
-		{
-			for (int i = 0; i < 4; i++)
-			{
-				game_ui_hand[i].x -= 8;
-			}
+			apple_num--;
+			heart_num--;
 		}
 
-
-		
-
-		
-		if (Key[S] == PUSH && isThunder_flag == false && cooltime_Thunder == 120 && Effect_flag == false)
-		{
-			Effect_flag = true;
-			isThunder_flag = true;
-			cooltime_Thunder = 0;
-			use_Thunder++;
-		}
-		else if (cooltime_Thunder != 120)
-		{
-			cooltime_Thunder++;
-		}
-		
-		
 
 		if (Key[X] == PUSH)
 		{
 			current_scene = STAGE_SELECT_SCENE;
 		}
+
+
+		//キャラクターが生きている時の処理
+		if (death_flag == false)
+		{
+			if (jump_time == 0)
+			{
+				if (Key[L] == ON)
+				{
+					if (player_chara[0].tu > player_chara[1].tu)
+					{
+						float tmp_tu;
+
+						tmp_tu = player_chara[0].tu;
+						player_chara[0].tu = player_chara[1].tu;
+						player_chara[1].tu = tmp_tu;
+
+						tmp_tu = player_chara[2].tu;
+						player_chara[2].tu = player_chara[3].tu;
+						player_chara[3].tu = tmp_tu;
+					}
+
+					//右上と右下のあたり判定
+					if (Map_Hit(int(player_chara[2].x - map_error), int(player_chara[2].y - 20)) == false && Map_Hit(int(player_chara[1].x - map_error), int(player_chara[1].y)) == false)
+					{
+						for (int i = 0; i < 4; i++)
+						{
+							player_chara[i].x += 5;
+
+							if (game_time % 4 == 0)
+							{
+								player_chara[i].tu += 0.25f;
+							}
+						}
+					}
+
+					if (player_chara[0].tu == 1.0f)
+					{
+						player_chara[0].tu = 0.0f;
+						player_chara[1].tu = 0.25f;
+						player_chara[2].tu = 0.25f;
+						player_chara[3].tu = 0.0f;
+					}
+				}
+
+
+				if (Key[J] == ON)
+				{
+					if (player_chara[0].tu < player_chara[1].tu)
+					{
+						float tmp_tu;
+
+						tmp_tu = player_chara[0].tu;
+						player_chara[0].tu = player_chara[1].tu;
+						player_chara[1].tu = tmp_tu;
+
+						tmp_tu = player_chara[2].tu;
+						player_chara[2].tu = player_chara[3].tu;
+						player_chara[3].tu = tmp_tu;
+					}
+
+					if (Map_Hit(int(player_chara[0].x - map_error), int(player_chara[0].y)) == false && Map_Hit(int(player_chara[3].x - map_error), int(player_chara[3].y - 20)) == false)
+					{
+						for (int i = 0; i < 4; i++)
+						{
+							player_chara[i].x -= 5;
+
+							if (game_time % 4 == 0)
+							{
+								player_chara[i].tu += 0.25f;
+							}
+						}
+					}
+
+
+
+					if (player_chara[1].tu == 1.0f)
+					{
+						player_chara[0].tu = 0.25f;
+						player_chara[1].tu = 0.0f;
+						player_chara[2].tu = 0.0f;
+						player_chara[3].tu = 0.25f;
+					}
+				}
+
+
+
+				if (Key[I] == PUSH)
+				{
+					if ((Map_Hit(int(player_chara[3].x + 15 - map_error), int(player_chara[3].y)) == true || Map_Hit(int(player_chara[2].x - 15 - map_error), int(player_chara[2].y)) == true))
+					{
+						isjump_flag = true;
+						v0 = -20;
+					}
+				}
+			}
+
+
+
+
+			if (Key[RIGHT] == ON && game_ui_hand[1].x < 1300)
+			{
+				for (int i = 0; i < 4; i++)
+				{
+					game_ui_hand[i].x += 8;
+				}
+			}
+
+
+			if (Key[LEFT] == ON && game_ui_hand[0].x > -20)
+			{
+				for (int i = 0; i < 4; i++)
+				{
+					game_ui_hand[i].x -= 8;
+				}
+			}
+
+
+
+
+
+			if (Key[S] == PUSH && isThunder_flag == false && cooltime_Thunder == 240 && Effect_flag == false)
+			{
+				Effect_flag = true;
+				isThunder_flag = true;
+				init_Thunder = true;
+				cooltime_Thunder = 0;
+				use_Thunder++;
+			}
+			else if (cooltime_Thunder != 240)
+			{
+				cooltime_Thunder++;
+			}
+
+
+			if (Key[W] == PUSH && isWind_flag == false && cooltime_Wind == 120 && Effect_flag == false)
+			{
+				Effect_flag = true;
+				isWind_flag = true;
+				init_Wind = true;
+				cooltime_Wind = 0;
+				Wind_v0 = -5;
+				use_Wind++;
+			}
+			else if (cooltime_Wind != 120)
+			{
+				cooltime_Wind++;
+			}
+
+
+			
+		}
+		
 	
 
 
